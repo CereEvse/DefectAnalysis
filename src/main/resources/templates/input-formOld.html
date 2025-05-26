@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Ввод данных</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .delete-row {
+            color: #ff0000;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .delete-row:hover {
+            color: #cc0000;
+        }
+        .batch-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .batch-row .form-group {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Введите данные партий</h1>
+    <form th:action="@{/analyze}" th:object="${batchData}" method="post">
+        <div id="batch-inputs">
+            <div class="batch-row">
+                <div class="form-group">
+                    <label>Размер партии</label>
+                    <input type="number" name="batchSizes" class="form-control" required min="1">
+                </div>
+                <div class="form-group">
+                    <label>Количество брака</label>
+                    <input type="number" name="defectCounts" class="form-control" required min="0">
+                </div>
+                <span class="delete-row" onclick="removeRow(this)">✕</span>
+            </div>
+        </div>
+
+        <button type="button" id="add-row" class="btn">Добавить партию</button>
+        <button type="submit" class="btn btn-primary">Анализировать</button>
+    </form>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#add-row').click(function() {
+            var newRow = $('<div class="batch-row">' +
+                '<div class="form-group">' +
+                '<label>Размер партии</label>' +
+                '<input type="number" name="batchSizes" class="form-control" required min="1">' +
+                '</div>' +
+                '<div class="form-group">' +
+                '<label>Количество брака</label>' +
+                '<input type="number" name="defectCounts" class="form-control" required min="0">' +
+                '</div>' +
+                '<span class="delete-row" onclick="removeRow(this)">✕</span>' +
+                '</div>');
+            $('#batch-inputs').append(newRow);
+        });
+    });
+
+    function removeRow(element) {
+        // Не позволяем удалить последнюю строку
+        if ($('.batch-row').length > 1) {
+            $(element).parent('.batch-row').remove();
+        } else {
+            alert("Должна остаться хотя бы одна строка с данными");
+        }
+    }
+</script>
+</body>
+</html>

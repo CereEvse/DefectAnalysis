@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Результаты анализа</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="container">
+    <h1>Результаты анализа</h1>
+
+    <div class="result-summary">
+        <h2>Результаты проверки гипотезы</h2>
+        <p><strong>Тип распределения:</strong> <span th:text="${result.distributionType}"></span></p>
+        <p><strong>Значение хи-квадрат:</strong> <span th:text="${#numbers.formatDecimal(result.chiSquareValue, 1, 4)}"></span></p>
+        <p><strong>Критическое значение (α=0.05):</strong> <span th:text="${#numbers.formatDecimal(result.criticalValue, 1, 2)}"></span></p>
+        <p><strong>Заключение:</strong>
+            <span th:if="${result.hypothesisAccepted}" style="color: green;">Данные соответствуют распределению
+                <span th:text="${result.distributionType}"></span> (p > 0.05)</span>
+            <span th:unless="${result.hypothesisAccepted}" style="color: red;">Данные НЕ соответствуют распределению
+                <span th:text="${result.distributionType}"></span> (p ≤ 0.05)</span>
+        </p>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="distributionChart"></canvas>
+    </div>
+
+    <a href="javascript:history.back()" class="btn">Новый анализ</a>
+</div>
+
+<script>
+    const ctx = document.getElementById('distributionChart').getContext('2d');
+
+    const expectedLabels = [[${expectedLabels}]];
+    const expectedValues = [[${expectedValues}]];
+    const observedValues = [[${observedValues}]];
+
+    const chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: expectedLabels,
+            datasets: [
+                {
+                    label: 'Ожидаемая вероятность',
+                    data: expectedValues,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Наблюдаемая вероятность',
+                    data: observedValues,
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Вероятность'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Количество бракованных деталей'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Сравнение ожидаемого и наблюдаемого распределения'
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>
