@@ -1,12 +1,16 @@
 package com.defectanalysis.controller;
 
 import com.defectanalysis.model.AnalysisResult;
+import com.defectanalysis.model.BatchData;
 import com.defectanalysis.service.AnalysisService;
+import com.defectanalysis.service.FileImportService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +19,7 @@ import java.util.List;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private FileImportService fileImportService;
 
     public AnalysisController(AnalysisService analysisService) {
         this.analysisService = analysisService;
@@ -100,5 +105,18 @@ public class AnalysisController {
     public String showAnalysisParams(Model model) {
         // Можно добавить дополнительные параметры, если нужно
         return "input-formTest";
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<?> handleFileUpload(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("fileType") String fileType) {
+
+        try {
+            List<BatchData> data = fileImportService.importData(file, fileType);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

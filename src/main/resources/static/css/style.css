@@ -141,3 +141,25 @@ input[type="number"] {
         page-break-after: avoid;
     }
 }
+.data-import-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.import-status {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.import-status.success {
+    background-color: #dff0d8;
+    color: #3c763d;
+}
+
+.import-status.error {
+    background-color: #f2dede;
+    color: #a94442;
+}

@@ -2,9 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Тестирование</title>
+    <title>Ввод данных</title>
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Для работы с Excel в браузере -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .delete-row {
             color: #ff0000;
@@ -133,6 +135,28 @@
         .param-item {
             margin: 5px 0;
         }
+        .data-actions-row {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .data-actions-column {
+            flex: 1;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .data-actions-column h3 {
+            margin-top: 0;
+        }
+
+        @media (max-width: 768px) {
+            .data-actions-row {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
@@ -185,19 +209,43 @@
             <button type="submit" class="btn btn-primary">Анализировать данные</button>
         </div>
 
-        <div class="generate-section">
-            <h3>Генерация тестовых данных</h3>
-            <div class="form-group">
-                <label>Среднее количество брака на партию (λ)</label>
-                <input type="number" id="lambda" class="form-control" min="0.1" step="0.1" value="5">
+        <div class="data-actions-row">
+            <div class="data-actions-column">
+                <h3>Импорт данных</h3>
+                <div class="form-group">
+                    <label for="file-type">Формат файла:</label>
+                    <select id="file-type" class="form-control">
+                        <option value="excel">Excel (.xlsx)</option>
+                        <option value="csv">CSV</option>
+                        <option value="json">JSON</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="file-input">Выберите файл:</label>
+                    <input type="file" id="file-input" class="form-control" accept=".xlsx,.csv,.json">
+                </div>
+                <div class="form-group">
+                    <button type="button" id="import-btn" class="btn btn-secondary">Импортировать данные</button>
+                </div>
+                <div id="import-status" class="import-status"></div>
             </div>
-            <div class="form-group">
-                <label>Количество партий</label>
-                <input type="number" id="sampleSize" class="form-control" min="5" max="100" value="20">
-            </div>
-            <div class="generate-controls">
-                <button type="button" id="generate-data" class="btn btn-secondary">Сгенерировать</button>
-                <button type="button" id="clear-data" class="btn btn-secondary">Очистить</button>
+
+            <div class="data-actions-column">
+                <div class="generate-section">
+                    <h3>Генерация тестовых данных</h3>
+                    <div class="form-group">
+                        <label>Среднее количество брака на партию (λ)</label>
+                        <input type="number" id="lambda" class="form-control" min="0.1" step="0.1" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Количество партий</label>
+                        <input type="number" id="sampleSize" class="form-control" min="5" max="100" value="20">
+                    </div>
+                    <div class="generate-controls">
+                        <button type="button" id="generate-data" class="btn btn-secondary">Сгенерировать</button>
+                        <button type="button" id="clear-data" class="btn btn-secondary">Очистить</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -550,6 +598,115 @@
         if (name && savedDatasets[name]) {
             loadDatasetByName(name);
         }
+    }
+    // Импорт данных из файлов
+    document.getElementById('import-btn').addEventListener('click', importData);
+
+    function importData() {
+        const fileInput = document.getElementById('file-input');
+        const fileType = document.getElementById('file-type').value;
+        const file = fileInput.files[0];
+
+        if (!file) {
+            showNotification("Выберите файл для импорта", "error");
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const data = parseFile(e.target.result, fileType, file.name);
+                populateForm(data);
+                showNotification(`Успешно импортировано ${data.length} записей`, "success");
+            } catch (error) {
+                showNotification(`Ошибка импорта: ${error.message}`, "error");
+                console.error(error);
+            }
+        };
+
+        switch(fileType) {
+            case 'excel':
+                reader.readAsArrayBuffer(file);
+                break;
+            case 'csv':
+            case 'json':
+                reader.readAsText(file);
+                break;
+        }
+    }
+
+    function parseFile(content, fileType, fileName) {
+        switch(fileType) {
+            case 'excel':
+                return parseExcel(content);
+            case 'csv':
+                return parseCSV(content);
+            case 'json':
+                return parseJSON(content);
+            default:
+                throw new Error("Неподдерживаемый формат файла");
+        }
+    }
+
+    function parseExcel(buffer) {
+        // Используем SheetJS (xlsx) для обработки Excel
+        if (typeof XLSX === 'undefined') {
+            throw new Error("Библиотека для Excel не загружена");
+        }
+
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        return XLSX.utils.sheet_to_json(firstSheet).map(row => ({
+            batchSize: row['Размер партии'] || row['batchSize'] || row['size'],
+            defectCount: row['Количество брака'] || row['defectCount'] || row['defects']
+        })).filter(item => item.batchSize && item.defectCount);
+    }
+
+    function parseCSV(content) {
+        const lines = content.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim());
+
+        return lines.slice(1).map(line => {
+            if (!line.trim()) return null;
+            const values = line.split(',');
+            const row = {};
+            headers.forEach((header, i) => {
+                row[header] = values[i] ? values[i].trim() : '';
+            });
+
+            return {
+                batchSize: row['Размер партии'] || row['batchSize'] || row['size'],
+                defectCount: row['Количество брака'] || row['defectCount'] || row['defects']
+            };
+        }).filter(item => item && item.batchSize && item.defectCount);
+    }
+
+    function parseJSON(content) {
+        const data = JSON.parse(content);
+        return Array.isArray(data) ? data : [data];
+    }
+
+    function populateForm(data) {
+        // Очищаем существующие данные
+        $('#batch-inputs').empty();
+
+        // Добавляем новые строки
+        data.forEach(item => {
+            const newRow = $('<div class="batch-row">' +
+                '<div class="form-group">' +
+                '<label>Размер партии</label>' +
+                `<input type="number" name="batchSizes" class="form-control" required min="1" value="${item.batchSize}">` +
+                '</div>' +
+                '<div class="form-group">' +
+                '<label>Количество брака</label>' +
+                `<input type="number" name="defectCounts" class="form-control" required min="0" value="${item.defectCount}">` +
+                '</div>' +
+                '<span class="delete-row" onclick="removeRow(this)">✕</span>' +
+                '</div>');
+
+            $('#batch-inputs').append(newRow);
+        });
     }
 </script>
 </body>

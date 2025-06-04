@@ -13,6 +13,9 @@ public class BatchData {
         this.defectCounts = defectCounts;
     }
 
+    public BatchData(int numericCellValue, int numericCellValue1) {
+    }
+
     // Геттеры и сеттеры
     public List<Integer> getBatchSizes() {
         return batchSizes;
