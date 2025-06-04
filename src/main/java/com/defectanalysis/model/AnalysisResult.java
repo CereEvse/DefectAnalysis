@@ -9,6 +9,8 @@ public class AnalysisResult {
     private boolean hypothesisAccepted; // Принята ли гипотеза
     private Map<Integer, Double> expectedDistribution; // Ожидаемое распределение
     private Map<Integer, Double> observedDistribution; // Наблюдаемое распределение
+    private Map<String, Double> distributionParams;
+    private String warningMessage;
 
     public AnalysisResult() {}
 
@@ -59,5 +61,20 @@ public class AnalysisResult {
 
     public void setObservedDistribution(Map<Integer, Double> observedDistribution) {
         this.observedDistribution = observedDistribution;
+    }
+
+    public Map<String, Double> getDistributionParams() {
+        return distributionParams;
+    }
+
+    public void setDistributionParams(Map<String, Double> distributionParams) {
+        this.distributionParams = distributionParams;
+    }
+    public String getWarningMessage() {
+        return warningMessage;
+    }
+
+    public void setWarningMessage(String warningMessage) {
+        this.warningMessage = warningMessage;
     }
 }

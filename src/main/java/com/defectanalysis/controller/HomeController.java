@@ -15,8 +15,8 @@ public class HomeController {
     public String inputForm() {
         return "input-form";
     }
-    @GetMapping("/inputTest")
-    public String inputFormTest() {
-        return "input-formTest";
-    }
+//    @GetMapping("/inputTest")
+//    public String inputFormTest() {
+//        return "input-formTest";
+//    }
 }

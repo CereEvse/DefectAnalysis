@@ -87,3 +87,57 @@ input[type="number"] {
     position: relative;
     height: 400px;
 }
+.input-error {
+    border-color: #d9534f !important;
+    box-shadow: 0 0 0 0.2rem rgba(217, 83, 79, 0.25);
+}
+
+.notification.warning {
+    background: #f0ad4e;
+}
+
+.distribution-params {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 15px 0;
+}
+
+.param-item {
+    margin: 5px 0;
+    padding: 5px;
+    background: white;
+    border-radius: 3px;
+}
+.distribution-name {
+    font-weight: bold;
+    color: #2c3e50;
+    text-transform: capitalize;
+}
+/* Дополнительные стили для отчета */
+.report-title h1 {
+    font-size: 24px;
+    margin-bottom: 5px;
+    color: #2c3e50;
+}
+
+.input-data-section {
+    margin-bottom: 30px;
+    page-break-inside: avoid;
+}
+
+.result-summary {
+    page-break-inside: avoid;
+}
+
+@media print {
+    .input-data-table {
+        font-size: 10pt;
+    }
+    .input-data-table th, .input-data-table td {
+        padding: 4px;
+    }
+    h1, h2, h3 {
+        page-break-after: avoid;
+    }
+}

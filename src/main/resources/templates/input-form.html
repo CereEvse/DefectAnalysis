@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Ввод данных о браке</title>
+    <title>Тестирование</title>
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
@@ -90,6 +90,49 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
+        .analysis-params {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .param-group {
+            margin-bottom: 15px;
+        }
+        select.form-control {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .error-message {
+            color: #d9534f;
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .warning-message {
+            color: #8a6d3b;
+            background-color: #fcf8e3;
+            border: 1px solid #faebcc;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .distribution-params {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .param-item {
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -97,6 +140,8 @@
 
 <div class="container">
     <h1>Анализ брака в производственных партиях</h1>
+    <!-- Блок для отображения ошибок -->
+    <div id="error-container" class="error-message" th:if="${error}" th:text="${error}" style="display: none;"></div>
     <form id="data-form" th:action="@{/analyze}" th:object="${batchData}" method="post">
         <div id="batch-inputs">
             <div class="batch-row">
@@ -112,10 +157,32 @@
             </div>
         </div>
 
+        <div class="analysis-params">
+            <h3>Параметры анализа</h3>
+
+            <div class="param-group">
+                <label>Тип распределения:</label>
+                <select name="distributionType" class="form-control">
+                    <option value="POISSON">Пуассона</option>
+                    <option value="BINOMIAL">Биномиальное</option>
+                    <option value="NORMAL">Нормальное</option>
+                    <option value="EXPONENTIAL">Экспоненциальное</option>
+                </select>
+            </div>
+
+            <div class="param-group">
+                <label>Уровень значимости (α):</label>
+                <select name="significanceLevel" class="form-control">
+                    <option value="0.01">0.01 (1%)</option>
+                    <option value="0.05" selected>0.05 (5%)</option>
+                    <option value="0.10">0.10 (10%)</option>
+                </select>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button type="button" id="add-row" class="btn btn-secondary">Добавить партию</button>
             <button type="submit" class="btn btn-primary">Анализировать данные</button>
-            <button type="button" id="clear-data" class="btn btn-secondary">Очистить</button>
         </div>
 
         <div class="data-management">
@@ -142,16 +209,98 @@
 
 <script>
     $(document).ready(function() {
+
+        // Обработка ошибок из сервера
+        const errorMessage = $("#error-container").text().trim();
+        if (errorMessage) {
+            showNotification(errorMessage, "error");
+            $("#error-container").show();
+        }
+
+        // Валидация перед отправкой
+        $("#data-form").submit(function(e) {
+            if (!validateInput()) {
+                e.preventDefault();
+            }
+        });
         // Инициализация - добавляем одну пустую строку
         //addEmptyRow();
         loadDatasetsList();
 
         // Обработчики событий
         $('#add-row').click(addEmptyRow);
+        $('#generate-data').click(generateTestData);
         $('#clear-data').click(clearData);
         $('#save-dataset').click(saveDataset);
         $('#load-dataset').click(loadDatasetPrompt);
     });
+
+    function validateInput() {
+        // Проверка количества строк
+        if ($(".batch-row").length < 2) {
+            showNotification("Необходимо ввести данные как минимум для 2 партий", "error");
+            return false;
+        }
+
+        // Проверка значений
+        let isValid = true;
+        $(".batch-row").each(function() {
+            const batchSize = parseInt($(this).find("input[name='batchSizes']").val());
+            const defectCount = parseInt($(this).find("input[name='defectCounts']").val());
+
+            if (isNaN(batchSize)) {
+                showNotification("Размер партии должен быть числом", "error", $(this).find("input[name='batchSizes']"));
+                isValid = false;
+            }
+
+            if (isNaN(defectCount)) {
+                showNotification("Количество дефектов должно быть числом", "error", $(this).find("input[name='defectCounts']"));
+                isValid = false;
+            }
+
+            if (batchSize <= 0) {
+                showNotification("Размер партии должен быть положительным", "error", $(this).find("input[name='batchSizes']"));
+                isValid = false;
+            }
+
+            if (defectCount < 0) {
+                showNotification("Количество дефектов не может быть отрицательным", "error", $(this).find("input[name='defectCounts']"));
+                isValid = false;
+            }
+
+            // Для биномиального распределения
+            if ($("#distribution-type").val() === "BINOMIAL" && defectCount > batchSize) {
+                showNotification(
+                    "Для биномиального распределения количество дефектов не может превышать размер партии",
+                    "error",
+                    $(this).find("input[name='defectCounts']")
+                );
+                isValid = false;
+            }
+        });
+
+        return isValid;
+    }
+
+    function showNotification(message, type, element) {
+        const $notification = $("#notification");
+        $notification.text(message)
+            .removeClass('success error warning')
+            .addClass(type)
+            .fadeIn();
+
+        if (element) {
+            element.addClass('input-error');
+            $notification.click(function() {
+                element.removeClass('input-error');
+                $notification.off('click');
+            });
+        }
+
+        setTimeout(() => {
+            $notification.fadeOut();
+        }, 5000);
+    }
 
     function addEmptyRow() {
         const newRow = $('<div class="batch-row">' +
@@ -296,18 +445,6 @@
         if (name && savedDatasets[name]) {
             loadDatasetByName(name);
         }
-    }
-
-    function showNotification(message, type) {
-        const $notification = $('#notification');
-        $notification.text(message)
-            .removeClass('success error')
-            .addClass(type)
-            .fadeIn();
-
-        setTimeout(() => {
-            $notification.fadeOut();
-        }, 3000);
     }
 </script>
 </body>

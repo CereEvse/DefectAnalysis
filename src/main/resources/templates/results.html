@@ -5,29 +5,148 @@
     <title>Результаты анализа</title>
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .warning-message {
+            color: #8a6d3b;
+            background-color: #fcf8e3;
+            border: 1px solid #faebcc;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        /* Стили для печати */
+        @media print {
+            .no-print, .action-buttons {
+                display: none !important;
+            }
+            body {
+                font-size: 12pt;
+                padding: 0;
+                margin: 0;
+            }
+            .container {
+                width: 100%;
+                padding: 0px;
+            }
+        }
+
+        /* Общие стили */
+        .input-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .input-data-table th, .input-data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        .input-data-table th {
+            background-color: #f2f2f2;
+        }
+        .action-buttons {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-print, .btn-pdf {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-print {
+            background: #3498db;
+            color: white;
+        }
+        .btn-pdf {
+            background: #e74c3c;
+            color: white;
+        }
+        .report-title {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .report-date {
+            text-align: right;
+            margin-bottom: 10px;
+            color: #666;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
     <h1>Результаты анализа</h1>
 
+    <!-- Блок для предупреждений -->
+    <div th:if="${result.warningMessage != null and !result.warningMessage.isEmpty()}"
+         class="warning-message no-print" th:text="${result.warningMessage}">
+    </div>
+
+    <div class="container" id="report-content">
+        <!-- Заголовок отчета -->
+        <div class="report-title">
+            <h1>Отчет по анализу брака в производственных партиях</h1>
+        </div>
+
+        <!-- Дата генерации -->
+        <div class="report-date">
+            Дата: <span th:text="${#temporals.format(#temporals.createNow(), 'dd.MM.yyyy HH:mm')}"></span>
+        </div>
+
+        <!-- Блок входных данных -->
+        <div class="input-data-section">
+            <h2>Исходные данные</h2>
+            <table class="input-data-table">
+                <thead>
+                <tr>
+                    <th>№ партии</th>
+                    <th>Размер партии</th>
+                    <th>Количество брака</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item,iter : ${batchData.items}">
+                    <td th:text="${iter.index + 1}"></td>
+                    <td th:text="${item.batchSize}"></td>
+                    <td th:text="${item.defectCount}"></td>
+                </tr>
+                <tr>
+                    <td><strong>Итого</strong></td>
+                    <td th:text="${batchData.totalBatchSize}"></td>
+                    <td th:text="${batchData.totalDefectCount}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
     <div class="result-summary">
         <h2>Результаты проверки гипотезы</h2>
         <p><strong>Тип распределения:</strong> <span th:text="${result.distributionType}"></span></p>
         <p><strong>Значение хи-квадрат:</strong> <span th:text="${#numbers.formatDecimal(result.chiSquareValue, 1, 4)}"></span></p>
-        <p><strong>Критическое значение (α=0.05):</strong> <span th:text="${#numbers.formatDecimal(result.criticalValue, 1, 2)}"></span></p>
+        <p><strong>Критическое значение (при α=<span th:text="${significanceLevel}"></span>):</strong> <span th:text="${#numbers.formatDecimal(result.criticalValue, 1, 2)}"></span></p>
         <p><strong>Заключение:</strong>
             <span th:if="${result.hypothesisAccepted}" style="color: green;">Данные соответствуют распределению
-                <span th:text="${result.distributionType}"></span> (p > 0.05)</span>
+            <span th:text="${result.distributionType}"></span> (p > <span th:text="${significanceLevel}"></span>)</span>
             <span th:unless="${result.hypothesisAccepted}" style="color: red;">Данные НЕ соответствуют распределению
-                <span th:text="${result.distributionType}"></span> (p ≤ 0.05)</span>
+            <span th:text="${result.distributionType}"></span> (p ≤ <span th:text="${significanceLevel}"></span>)</span>
         </p>
     </div>
+
 
     <div class="chart-container">
         <canvas id="distributionChart"></canvas>
     </div>
 
-    <a href="javascript:history.back()" class="btn">Новый анализ</a>
+    <!-- Кнопки действий -->
+    <div class="action-buttons no-print">
+        <button class="btn-print" onclick="window.print()">Печать</button>
+       <!-- <button class="btn-pdf" onclick="generatePDF()">Сохранить как PDF</button> -->
+        <a href="javascript:history.back()" class="btn">Новый анализ</a>
+    </div>
+</div>
 </div>
 
 <script>
@@ -83,6 +202,27 @@
             }
         }
     });
+
+    // Генерация PDF
+    function generatePDF() {
+        const element = document.getElementById('report-content');
+        const opt = {
+            margin: 10,
+            filename: 'Анализ_брака_' + new Date().toLocaleDateString() + '.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        // Скрываем кнопки перед генерацией
+        document.querySelector('.action-buttons').style.display = 'none';
+        document.querySelector('.warning-message').style.display = 'none';
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            document.querySelector('.action-buttons').style.display = 'flex';
+        });
+    }
+
 </script>
 </body>
 </html>

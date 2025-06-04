@@ -8,22 +8,53 @@ import java.util.Map;
 @Service
 public class AnalysisService {
 
-    public AnalysisResult analyzeDefectData(List<Integer> batchSizes, List<Integer> defectCounts) {
-        if (batchSizes == null || defectCounts == null || batchSizes.size() != defectCounts.size()) {
-            throw new IllegalArgumentException("Размеры партий и количество брака должны быть указаны и совпадать по количеству");
+    private static final Map<String, String> DISTRIBUTION_NAMES = Map.of(
+            "POISSON", "Пуассона",
+            "BINOMIAL", "Биномиальное",
+            "NORMAL", "Нормальное",
+            "EXPONENTIAL", "Экспоненциальное"
+    );
+
+    public AnalysisResult analyzeDefectData(
+            List<Integer> batchSizes,
+            List<Integer> defectCounts,
+            String distributionType,
+            double significanceLevel) {
+
+        String russianName = DISTRIBUTION_NAMES.getOrDefault(distributionType, distributionType);
+
+        try {
+            StatsCalculator.DistributionType type =
+                    StatsCalculator.DistributionType.valueOf(distributionType.toUpperCase());
+
+            StatsCalculator.DistributionTestResult testResult = StatsCalculator.testDistribution(
+                    defectCounts,
+                    StatsCalculator.DistributionType.valueOf(distributionType),
+                    significanceLevel,
+                    "BINOMIAL".equals(distributionType) ? batchSizes : null
+            );
+
+            return convertToAnalysisResult(testResult, russianName);
+
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Ошибка при анализе данных: " + e.getMessage(), e);
         }
+    }
 
-        // Анализ распределения Пуассона
-        Map<String, Object> poissonResult = StatsCalculator.calculatePoissonDistribution(defectCounts);
+    private AnalysisResult convertToAnalysisResult(
+            StatsCalculator.DistributionTestResult testResult,
+            String distributionType) {
 
-        // Подготовка результатов
         AnalysisResult result = new AnalysisResult();
-        result.setDistributionType("Пуассона");
-        result.setChiSquareValue((double) poissonResult.get("chiSquare"));
-        result.setCriticalValue(0.05);
-        result.setHypothesisAccepted((boolean) poissonResult.get("isPoisson"));
-        result.setExpectedDistribution((Map<Integer, Double>) poissonResult.get("expectedProb"));
-        result.setObservedDistribution((Map<Integer, Double>) poissonResult.get("observedProb"));
+        result.setDistributionType(distributionType);
+        result.setChiSquareValue(testResult.chiSquare());
+        result.setCriticalValue(testResult.criticalValue());
+        result.setHypothesisAccepted(testResult.hypothesisAccepted());
+        result.setExpectedDistribution(testResult.expectedProb());
+        result.setObservedDistribution(testResult.observedProb());
+        result.setDistributionParams(testResult.distributionParams());
+        result.setWarningMessage(testResult.warningMessage());
 
         return result;
     }
